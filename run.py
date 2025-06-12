@@ -1,14 +1,19 @@
 import os
 import tkinter as tk
 from tkinter import filedialog, colorchooser
-from PIL import Image #, ImageTk, ImageSequence
+from PIL import Image, ImageTk #, ImageSequence
+from tkinterdnd2 import DND_FILES, TkinterDnD
+
+IMAGE_EXTENSIONS = ('.png', '.jpeg', '.jpg', '.bmp')
+pattern = ';'.join(f'*{ext}' for ext in IMAGE_EXTENSIONS)
 
 class SpriteSheetToGif:
+
     def __init__(self, root):
         self.root = root
         self.root.title("Sprite Sheet to GIF")
 
-        self.sprite_path = ""
+        self.sprite_paths = []
         self.slice_width = tk.IntVar(value=64)
         self.slice_height = tk.IntVar(value=64)
         self.fps = tk.IntVar(value=10)
@@ -19,6 +24,12 @@ class SpriteSheetToGif:
 
     def build_ui(self):
         tk.Button(self.root, text="Load Sprite Sheet", command=self.load_image).pack()
+
+        self.listbox = tk.Listbox(self.root, width=60, height=6)
+        self.listbox.pack()
+        self.listbox.drop_target_register(DND_FILES)
+        self.listbox.dnd_bind('<<Drop>>', self.on_drop)
+        self.listbox.bind('<Delete>', self.remove_selected_path)
 
         tk.Label(self.root, text="Frame Width").pack()
         tk.Entry(self.root, textvariable=self.slice_width).pack()
@@ -35,12 +46,27 @@ class SpriteSheetToGif:
 
         tk.Button(self.root, text="Export as GIF", command=self.export_gif).pack()
         tk.Button(self.root, text="Export as PNG Frames", command=self.export_png_frames).pack()
+                    
+    def insert_files(self, paths: list[str]):
+        for path in paths:
+            if os.path.isfile(path) and path.lower().endswith((IMAGE_EXTENSIONS)):
+                if path not in self.sprite_paths:
+                    self.sprite_paths.append(path)
+                    self.listbox.insert(tk.END, os.path.basename(path))
+
+    def on_drop(self, event):
+        paths = self.root.tk.splitlist(event.data)
+        self.insert_files(paths)
 
     def load_image(self):
-        path = filedialog.askopenfilename(filetypes=[("Image files", "*.png;*.jpg;*.bmp")])
-        if path:
-            self.sprite_path = path
-            print(f"Loaded sprite sheet: {self.sprite_path}")
+        paths = self.root.tk.splitlist(filedialog.askopenfilenames(filetypes=[("Image files", pattern)]))
+        self.insert_files(paths)
+
+    def remove_selected_path(self, event=None):
+        selected_indicies = self.listbox.curselection()
+        for index in reversed(selected_indicies):
+            self.listbox.delete(index)
+            del self.sprite_paths[index]
 
     def choose_bg_color(self):
         color = colorchooser.askcolor()[1]
@@ -48,8 +74,8 @@ class SpriteSheetToGif:
             self.bg_color = color
             print(f"Selected background color: {self.bg_color}")
 
-    def slice_frames(self):
-        image = Image.open(self.sprite_path)
+    def slice_frames(self, path):
+        image = Image.open(path)
         img_w, img_h = image.size
         frame_w = self.slice_width.get()
         frame_h = self.slice_height.get()
@@ -70,16 +96,17 @@ class SpriteSheetToGif:
         return frames
 
     def export_gif(self):
-        if not self.sprite_path:
+        if not self.sprite_paths or len(self.sprite_paths) == 0:
             print("No sprite sheet loaded.")
             return
-
-        frames = self.slice_frames()
-        output_path = filedialog.asksaveasfilename(defaultextension=".gif", filetypes=[("GIF files", "*.gif")])
-        if output_path:
-            duration = int(1000 / self.fps.get())
-            frames[0].save(output_path, save_all=True, append_images=frames[1:], duration=duration, loop=0, transparency=0 if self.alpha_enabled.get() else None, disposal=2)
-            print(f"GIF exported: {output_path}")
+        for path in self.sprite_paths:
+            frames = self.slice_frames(path)
+            file_name, _ = os.path.splitext(os.path.basename(path))
+            output_path = filedialog.asksaveasfilename(defaultextension=".gif", filetypes=[("GIF files", "*.gif")], initialfile=file_name)
+            if output_path:
+                duration = int(1000 / self.fps.get())
+                frames[0].save(output_path, save_all=True, append_images=frames[1:], duration=duration, loop=0, transparency=0 if self.alpha_enabled.get() else None, disposal=2)
+                print(f"GIF exported: {output_path}")
 
     def export_png_frames(self):
         if not self.sprite_path:
@@ -96,6 +123,6 @@ class SpriteSheetToGif:
 
 # Run GUI
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = TkinterDnD.Tk()
     app = SpriteSheetToGif(root)
     root.mainloop()
