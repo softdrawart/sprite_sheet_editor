@@ -21,8 +21,20 @@ class SpriteSheetToGif:
         self.bg_color = "#ffffff"
 
         self.build_ui()
+        self.run_player()
+
+    def run_player(self):
+        selected_indicies = self.listbox.curselection()
+        if self.sprite_paths and len(selected_indicies)>0:
+            #if multiple selected only show first item
+            path = self.sprite_paths[selected_indicies]
+            if os.path.isfile(path) and path.lower().endswith((IMAGE_EXTENSIONS)):
+                image = Image.open(path)
+                self.image_tk = ImageTk.PhotoImage(image)
 
     def build_ui(self):
+        #### LOAD IMAGES ####
+
         tk.Button(self.root, text="Load Sprite Sheet", command=self.load_image).pack()
 
         self.listbox = tk.Listbox(self.root, width=60, height=6)
@@ -30,7 +42,14 @@ class SpriteSheetToGif:
         self.listbox.drop_target_register(DND_FILES)
         self.listbox.dnd_bind('<<Drop>>', self.on_drop)
         self.listbox.bind('<Delete>', self.remove_selected_path)
+        
 
+        #### PLAYER ####
+        self.player = tk.Label(self.root, text="waiting for image...", bg='white', width=200, height=200)
+        self.player.pack()
+        
+
+        #### PARAMETERS ####
         tk.Label(self.root, text="Frame Width").pack()
         tk.Entry(self.root, textvariable=self.slice_width).pack()
 
@@ -46,34 +65,7 @@ class SpriteSheetToGif:
 
         tk.Button(self.root, text="Export as GIF", command=self.export_gif).pack()
         tk.Button(self.root, text="Export as PNG Frames", command=self.export_png_frames).pack()
-                    
-    def insert_files(self, paths: list[str]):
-        for path in paths:
-            if os.path.isfile(path) and path.lower().endswith((IMAGE_EXTENSIONS)):
-                if path not in self.sprite_paths:
-                    self.sprite_paths.append(path)
-                    self.listbox.insert(tk.END, os.path.basename(path))
-
-    def on_drop(self, event):
-        paths = self.root.tk.splitlist(event.data)
-        self.insert_files(paths)
-
-    def load_image(self):
-        paths = self.root.tk.splitlist(filedialog.askopenfilenames(filetypes=[("Image files", pattern)]))
-        self.insert_files(paths)
-
-    def remove_selected_path(self, event=None):
-        selected_indicies = self.listbox.curselection()
-        for index in reversed(selected_indicies):
-            self.listbox.delete(index)
-            del self.sprite_paths[index]
-
-    def choose_bg_color(self):
-        color = colorchooser.askcolor()[1]
-        if color:
-            self.bg_color = color
-            print(f"Selected background color: {self.bg_color}")
-
+#####   EXTRA FUNCTIONS #####
     def slice_frames(self, path):
         image = Image.open(path)
         img_w, img_h = image.size
@@ -94,7 +86,36 @@ class SpriteSheetToGif:
                 frames.append(frame)
 
         return frames
+        
+    def insert_files(self, paths: list[str]):
+        for path in paths:
+            if os.path.isfile(path) and path.lower().endswith((IMAGE_EXTENSIONS)):
+                if path not in self.sprite_paths:
+                    self.sprite_paths.append(path)
+                    self.listbox.insert(tk.END, os.path.basename(path))
 
+#####   BUTTON FUNCTIONS #####
+    def load_image(self):
+        paths = self.root.tk.splitlist(filedialog.askopenfilenames(filetypes=[("Image files", pattern)]))
+        self.insert_files(paths)
+
+    def remove_selected_path(self, event=None):
+        selected_indicies = self.listbox.curselection()
+        for index in reversed(selected_indicies):
+            self.listbox.delete(index)
+            del self.sprite_paths[index]
+
+    def choose_bg_color(self):
+        color = colorchooser.askcolor()[1]
+        if color:
+            self.bg_color = color
+            print(f"Selected background color: {self.bg_color}")
+
+    def on_drop(self, event):
+        paths = self.root.tk.splitlist(event.data)
+        self.insert_files(paths)
+    def on_resize(self, event):
+        pass
     def export_gif(self):
         if not self.sprite_paths or len(self.sprite_paths) == 0:
             print("No sprite sheet loaded.")
