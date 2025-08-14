@@ -32,19 +32,28 @@ class SpriteSheetToGif:
 
     def run_player(self):
         frames_count = len(self.frames)
-        if len(self.frames)!=0 and (frames_count > self.current_frame >= 0):
+        if frames_count != 0 and (frames_count > self.current_frame >= 0):
             self.player.config(image=self.frames[self.current_frame])
-            self.player.image = self.frames[self.current_frame] #strong reference
-            self.current_frame = (self.current_frame + 1) % len(self.frames)
-        delay = int(1000/self.fps.get())
+            self.player.image = self.frames[self.current_frame]  # strong reference
+            self.current_frame = (self.current_frame + 1) % frames_count
+        try:
+            fps = float(self.fps.get())
+            if fps <= 0:
+                fps = 1
+        except (ValueError, tk.TclError):
+            fps = 1
+        
+
+        delay = int(1000 / fps)
         self.root.after(delay, self.run_player)
+
 
     def build_ui(self):
         #### LOAD IMAGES ####
 
         tk.Button(self.root, text="Load Sprite Sheet", command=self.load_image).pack()
 
-        self.listbox = tk.Listbox(self.root, width=60, height=6)
+        self.listbox = tk.Listbox(self.root, width=60, height=6, selectmode=tk.EXTENDED)
         self.listbox.pack()
         self.listbox.drop_target_register(DND_FILES)
         self.listbox.dnd_bind('<<Drop>>', self.on_drop)
@@ -135,29 +144,64 @@ class SpriteSheetToGif:
             print(f"Selected background color: {self.bg_color}")
 
     def export_gif(self):
-        if not self.sprite_paths or len(self.sprite_paths) == 0:
+        if not self.sprite_paths:
             print("No sprite sheet loaded.")
             return
-        for path in self.sprite_paths:
+        
+        selected_indices = self.listbox.curselection()
+        if not selected_indices:
+            print("No items selected.")
+            return
+
+        output_dir = filedialog.askdirectory()
+        if not output_dir:
+            return  # user cancelled
+        
+        for index in selected_indices:
+            path = self.sprite_paths[index]
             frames = self.slice_frames(path)
             file_name, _ = os.path.splitext(os.path.basename(path))
-            output_path = filedialog.asksaveasfilename(defaultextension=".gif", filetypes=[("GIF files", "*.gif")], initialfile=file_name)
-            if output_path:
-                duration = int(1000 / self.fps.get())
-                frames[0].save(output_path, save_all=True, append_images=frames[1:], duration=duration, loop=0, transparency=0 if self.alpha_enabled.get() else None, disposal=2)
-                print(f"GIF exported: {output_path}")
+
+            gif_path = os.path.join(output_dir, f"{file_name}.gif")
+            duration = int(1000 / self.fps.get())
+
+            frames[0].save(
+                gif_path, 
+                save_all=True, 
+                append_images=frames[1:], 
+                duration=duration,
+                loop=0, 
+                transparency=0 if self.alpha_enabled.get() else None, 
+                disposal=2
+            )
+            print(f"GIF exported: {gif_path}")
 
     def export_png_frames(self):
-        if not self.sprite_path:
+        if not self.sprite_paths:
             print("No sprite sheet loaded.")
             return
+        
+        selected_indices = self.listbox.curselection()
+        if not selected_indices:
+            print("No items selected.")
+            return
 
-        frames = self.slice_frames()
         output_dir = filedialog.askdirectory()
-        if output_dir:
+        if not output_dir:
+            return  # user cancelled
+        
+        for index in selected_indices:
+            path = self.sprite_paths[index]
+            frames = self.slice_frames(path)
+            file_name, _ = os.path.splitext(os.path.basename(path))
+            
+            folder_path = os.path.join(output_dir, file_name)
+            os.makedirs(folder_path, exist_ok=True)
+
             for i, frame in enumerate(frames):
-                filename = os.path.join(output_dir, f"frame_{i:03d}.png")
+                filename = os.path.join(folder_path, f"frame_{i:03d}.png")
                 frame.save(filename)
+            
             print(f"{len(frames)} PNG frames exported to: {output_dir}")
 
 #####   EVENT FUNCTIONS #####
