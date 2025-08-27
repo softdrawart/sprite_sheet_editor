@@ -25,14 +25,6 @@ if errorlevel 1 (
     exit /b
 )
 
-:: Clone the repository if not already cloned
-if not exist sprite_sheet_editor (
-    git clone https://github.com/softdrawart/sprite_sheet_editor
-)
-
-:: Change directory into the cloned repository
-cd sprite_sheet_editor
-
 :: Install requirements
 pip install -r requirements.txt
 if errorlevel 1 (

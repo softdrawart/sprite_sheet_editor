@@ -21,7 +21,10 @@ class SpriteSheetToGif:
 
         self.slice_width = tk.IntVar(value=64)
         self.slice_height = tk.IntVar(value=64)
-        self.count_frames = tk.IntVar(value=1)
+
+        self.count_frames_w = tk.IntVar(value=1)
+        self.count_frames_h = tk.IntVar(value=1)
+        
         self.fps = tk.IntVar(value=10)
         self.alpha_enabled = tk.BooleanVar(value=True)
         self.bg_color = "#ffffff"
@@ -68,8 +71,13 @@ class SpriteSheetToGif:
         
 
         #### PARAMETERS ####
-        tk.Label(self.root, text="Frame Count").pack()
-        self.count = tk.Entry(self.root, textvariable=self.count_frames)
+        tk.Label(self.root, text="Frame Count Width").pack()
+        self.count = tk.Entry(self.root, textvariable=self.count_frames_w)
+        self.count.pack()
+        self.count.bind('<Return>', self.on_change_count)
+
+        tk.Label(self.root, text="Frame Count Height").pack()
+        self.count = tk.Entry(self.root, textvariable=self.count_frames_h)
         self.count.pack()
         self.count.bind('<Return>', self.on_change_count)
 
@@ -222,8 +230,8 @@ class SpriteSheetToGif:
         if os.path.isfile(path) and path.lower().endswith((IMAGE_EXTENSIONS)):
             image = Image.open(self.current_path)
             img_w, img_h = image.size
-            self.slice_width.set(int(img_w/self.count_frames.get()))
-            self.slice_height.set(int(img_h))
+            self.slice_width.set(int(img_w/self.count_frames_w.get()))
+            self.slice_height.set(int(img_h/self.count_frames_h.get()))
             self.update_frames(self.current_path)
 # Run GUI
 if __name__ == "__main__":
